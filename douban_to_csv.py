@@ -5,6 +5,8 @@ import requests
 from datetime import datetime
 from bs4 import BeautifulSoup
 
+import json
+
 USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36 (KHTML, like Gecko) ' \
              'Chrome/47.0.2526.106 Safari/537.36 '
 START_DATE = '20050502'
@@ -12,6 +14,11 @@ IS_OVER = False
 
 COOKIES = {'cookie':''}
 START_PAGE = 1
+def get_proxy():
+    return requests.get("http://127.0.0.1:5010/get/").json()
+
+global PROXY
+PROXY = get_proxy().get("proxy")
 
 def get_rating(rating_class):
     """
@@ -24,7 +31,7 @@ def get_rating(rating_class):
 
 
 def get_imdb_id(url):
-    r = requests.get(url, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
+    r = requests.get(url, proxies={"http": "http://{}".format(PROXY)}, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
     soup = BeautifulSoup(r.text, 'lxml')
     info_area = soup.find(id='info')
     imdb_id = None
@@ -45,7 +52,7 @@ def get_imdb_id(url):
 
 def get_info(url):
     info = []
-    r = requests.get(url, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
+    r = requests.get(url, proxies={"http": "http://{}".format(PROXY)}, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
     soup = BeautifulSoup(r.text, "lxml")
     movie_items = soup.find_all("div", {"class": "item"})
     if len(movie_items) > 0:
@@ -85,7 +92,7 @@ def get_info(url):
 
 def get_max_index(user_id):
     url = f"https://movie.douban.com/people/{user_id}/collect"
-    r = requests.get(url, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
+    r = requests.get(url, proxies={"http": "http://{}".format(PROXY)}, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
     soup = BeautifulSoup(r.text, "lxml")
 
     paginator = soup.find("div", {"class": "paginator"})
@@ -107,10 +114,13 @@ def url_generator(user_id):
 def export(user_id):
     urls = url_generator(user_id)
     info = []
-    page_no = 1
+    page_limit = 10
+    page_no = START_PAGE
     for url in urls:
         if IS_OVER:
             break
+        elif page_no < page_limit:
+            PROXY = get_proxy().get("proxy")
         print(f'开始处理第 {page_no} 页...')
         info.extend(get_info(url))
         page_no += 1
@@ -124,7 +134,7 @@ def export(user_id):
 
 
 def check_user_exist(user_id):
-    r = requests.get(f'https://movie.douban.com/people/{user_id}/', headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
+    r = requests.get(f'https://movie.douban.com/people/{user_id}/', proxies={"http": "http://{}".format(PROXY)}, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
     soup = BeautifulSoup(r.text, 'lxml')
     if '页面不存在' in soup.title:
         return False
