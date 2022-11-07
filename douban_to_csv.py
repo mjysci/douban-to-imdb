@@ -107,7 +107,7 @@ def url_generator(user_id):
 def export(user_id):
     urls = url_generator(user_id)
     info = []
-    page_no = 1
+    page_no = START_PAGE
     for url in urls:
         if IS_OVER:
             break
