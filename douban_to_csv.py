@@ -10,6 +10,8 @@ USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/537.36
 START_DATE = '20050502'
 IS_OVER = False
 
+COOKIES = {'cookie':''}
+START_PAGE = 1
 
 def get_rating(rating_class):
     """
@@ -22,7 +24,7 @@ def get_rating(rating_class):
 
 
 def get_imdb_id(url):
-    r = requests.get(url, headers={'User-Agent': USER_AGENT})
+    r = requests.get(url, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
     soup = BeautifulSoup(r.text, 'lxml')
     info_area = soup.find(id='info')
     imdb_id = None
@@ -43,7 +45,7 @@ def get_imdb_id(url):
 
 def get_info(url):
     info = []
-    r = requests.get(url, headers={'User-Agent': USER_AGENT})
+    r = requests.get(url, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
     soup = BeautifulSoup(r.text, "lxml")
     movie_items = soup.find_all("div", {"class": "item"})
     if len(movie_items) > 0:
@@ -74,7 +76,7 @@ def get_info(url):
                 IS_OVER = True
                 break
 
-            info.append([title, rating, imdb])
+            info.append([title, rating, imdb, comment_date])
     else:
         return None
 
@@ -83,7 +85,7 @@ def get_info(url):
 
 def get_max_index(user_id):
     url = f"https://movie.douban.com/people/{user_id}/collect"
-    r = requests.get(url, headers={'User-Agent': USER_AGENT})
+    r = requests.get(url, headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
     soup = BeautifulSoup(r.text, "lxml")
 
     paginator = soup.find("div", {"class": "paginator"})
@@ -97,7 +99,7 @@ def get_max_index(user_id):
 
 def url_generator(user_id):
     max_index = get_max_index(user_id)
-    for index in range(0, max_index * 15, 15):
+    for index in range((START_PAGE-1) * 15, max_index * 15, 15):
         yield f"https://movie.douban.com/people/{user_id}/collect" \
               f"?start={index}&sort=time&rating=all&filter=all&mode=grid"
 
@@ -112,16 +114,17 @@ def export(user_id):
         print(f'开始处理第 {page_no} 页...')
         info.extend(get_info(url))
         page_no += 1
+
+        file_name = os.path.dirname(os.path.abspath(__file__)) + '/movie.csv'
+        with open(file_name, 'a', encoding='utf-8') as f:
+            writer = csv.writer(f, lineterminator='\n')
+            writer.writerows(info)
     print(f'处理完成, 总共处理了 {len(info)} 部电影')
-    file_name = os.path.dirname(os.path.abspath(__file__)) + '/movie.csv'
-    with open(file_name, 'w', encoding='utf-8') as f:
-        writer = csv.writer(f, lineterminator='\n')
-        writer.writerows(info)
     print('保存电影评分至：', file_name)
 
 
 def check_user_exist(user_id):
-    r = requests.get(f'https://movie.douban.com/people/{user_id}/', headers={'User-Agent': USER_AGENT})
+    r = requests.get(f'https://movie.douban.com/people/{user_id}/', headers={'User-Agent': USER_AGENT}, cookies=COOKIES)
     soup = BeautifulSoup(r.text, 'lxml')
     if '页面不存在' in soup.title:
         return False
